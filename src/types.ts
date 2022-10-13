@@ -1,0 +1,1 @@
+export type ResponseCallback = (responseText?: string | null) => void

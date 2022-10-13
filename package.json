@@ -1,0 +1,47 @@
+{
+  "name": "browserprint-es",
+  "version": "1.0.0",
+  "description": "BrowserPrint ES",
+  "main": "./dist/browserprint-es.cjs.js",
+  "module": "./dist/browserprint-es.js",
+  "type": "module",
+  "types": "./dist/typings.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist && eslint . --ext .ts",
+    "build": "tsc --outFile dist/typings.d.ts && rollup -c",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brianzinn/browserprint-es.git"
+  },
+  "author": "Brian Zinn",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/brianzinn/browserprint-es/issues"
+  },
+  "homepage": "https://github.com/brianzinn/browserprint-es#readme",
+  "dependencies": {
+    "@typescript-eslint/parser": "^5.40.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-jsdoc": "^39.3.6",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "rollup-plugin-filesize": "^9.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.19.3",
+    "@babel/preset-env": "^7.19.4",
+    "@babel/preset-typescript": "^7.18.6",
+    "@rollup/plugin-babel": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@types/node": "^18.8.4",
+    "@typescript-eslint/eslint-plugin": "^5.40.0",
+    "eslint": "^8.25.0",
+    "rimraf": "^3.0.2",
+    "rollup": "^3.0.0",
+    "typescript": "^4.8.4"
+  }
+}
