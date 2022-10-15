@@ -1,4 +1,3 @@
-
 /**
  * Information regarding the client application system and properties. 
  */

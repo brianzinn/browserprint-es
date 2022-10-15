@@ -1,16 +1,18 @@
-import BrowserPrint, { ConvertAndSendOptions, ToFormat } from "BrowserPrint"
-import browserPrint from "BrowserPrint"
-import { ResponseCallback } from "types"
-import { attachOnDoneCallbacks, getApiLocation, getRequest } from "utils"
+import { BrowserPrint, ConvertAndSendOptions, ToFormat } from "./BrowserPrint"
+import { ResponseCallback } from "./types"
+import { attachOnDoneCallbacks, getApiLocation, getRequest } from "./utils"
 
 /**
  * The connection type. Possible values are 'network', 'usb', 'bluetooth' 
  */
-export enum DeviceConnectionType {
-  Bluetooth = 'bluetooth',
-  USB = 'usb',
-  Network = 'network'
-}
+// export enum DeviceConnectionType {
+//   Bluetooth = 'bluetooth',
+//   USB = 'usb',
+//   Network = 'network',
+//   Driver = 'driver' // this one is not listed in the official JSDoc
+// }
+
+export type DeviceConnectionType = 'bluetooth' | 'usb' | 'network' | 'driver';
 
 export type SendUrlOptions = {
   /**
@@ -30,14 +32,19 @@ export type SendUrlOptions = {
 }
 
 export type DeviceFields = {
+  deviceType: string
+  /**
+   * not looking so unique!
+   */
+  uid: string
+  provider: string
   /**
    * The friendly name of the device. This will be generated based on the response from discovered network printers. For USB printers, this value will be the same as the uid 
    */
+  
   name: string
-  uid: string
   connection: DeviceConnectionType
-  deviceType: string
-  provider: string
+  version: number  
   manufacturer: string
 }
 
@@ -46,7 +53,7 @@ export type DeviceFields = {
  */
 export class Device {
   // These private are not listed in jsdoc
-  private uid: string;
+  private _uid: string;
   private deviceType: string;
   private provider: string;
   private manufacturer: string;
@@ -74,33 +81,38 @@ export class Device {
    * @param deviceJson Json describing this device
    */
   constructor(deviceJson: DeviceFields) {
+    // TODO: back more properties to private (name, connection, version, readRetries)
+    this._uid = deviceJson.uid;
     this.name = deviceJson.name;
-    this.uid = deviceJson.uid;
     this.connection = deviceJson.connection;
     this.deviceType = deviceJson.deviceType;
     this.provider = deviceJson.provider;
     this.manufacturer = deviceJson.manufacturer;
-
-    this.version = 2;
+    this.version = deviceJson.version;
+    // not provided by device
     this.readRetries = ("bluetooth" === this.connection) ? 1 : 0;
+  }
+
+  public get uid(): string {
+    return this._uid;
   }
 
   /**
    * Function that is called if the errorCallback is not included for a send operation
    */
-  sendErrorCallback: ResponseCallback = () => {/* empty */};
+  sendErrorCallback: ResponseCallback = () => {/* empty */ };
   /**
    * Function that is called if a finishedCallback is not included for a send operation
    */
-  sendFinishedCallback: ResponseCallback = () => {/* empty */};
+  sendFinishedCallback: ResponseCallback = () => {/* empty */ };
   /**
    * Function that is called if an errorCallback is not included for a read operation
    */
-  readErrorCallback: ResponseCallback = () => {/* empty */};
+  readErrorCallback: ResponseCallback = () => {/* empty */ };
   /**
    * Function that is called if an finishedCallback is not included for a read operation
    */
-  readFinishedCallback: ResponseCallback = () => {/* empty */};
+  readFinishedCallback: ResponseCallback = () => {/* empty */ };
 
   /**
    * Send data to the device
@@ -148,7 +160,7 @@ export class Device {
       const onFileLoadedCallback = (newData: string | null | undefined) => {
         this.sendFile(newData ?? '' /* coersion for Typescript */, onSuccessCallback, onErrorCallback)
       };
-      browserPrint.loadFileFromUrl(resource /* original code shadowed this variable */, onFileLoadedCallback, onErrorCallback);
+      BrowserPrint.loadFileFromUrl(resource /* original code shadowed this variable */, onFileLoadedCallback, onErrorCallback);
     } else {
       const requestObject = getRequest("POST", getApiLocation() + "write");
       if (requestObject) {
@@ -317,7 +329,7 @@ export class Device {
       options.action = "print"
     };
     // TODO: need to delegate to browserprint - is it a static method or do we need instance?
-    browserPrint.convert(resource, this, options, finishedCallback, errorCallback)
+    BrowserPrint.convert(resource, this, options, finishedCallback, errorCallback)
   }
 
   /**

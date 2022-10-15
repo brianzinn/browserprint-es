@@ -1,4 +1,4 @@
-import { ResponseCallback } from "types";
+import { ResponseCallback } from "./types";
 
 export const getRequest = (method: string, url: string | URL): XMLHttpRequest => {
   const requestObject = new XMLHttpRequest;
@@ -28,7 +28,9 @@ export const attachOnDoneCallbacks = (requestObject: XMLHttpRequest, successCall
   return requestObject
 }
 
-const useHttpsByUserAgent = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const isBrowser = window !== undefined && window.navigator !== undefined;
+console.log('is browser:', isBrowser);
+const useHttpsByUserAgent = isBrowser && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 // navigator.userAgent.indexOf("Trident/7.0"); wow!
 let API_LOCATION = "http://127.0.0.1:9100/";
@@ -37,3 +39,12 @@ if (useHttpsByUserAgent && "https:" === location.protocol) {
 };
 
 export const getApiLocation = (): string => API_LOCATION;
+
+export const hasProperControlCharacters = (characters: string): boolean => {
+  if (2 !== characters.charCodeAt(0) || 3 !== characters.charCodeAt(characters.length - 1)) {
+    console.log("Response did not contain proper control characters")
+    return false;
+  } else {
+    return true;
+  }
+}

@@ -1,6 +1,10 @@
 node_modules/
 package-lock.json
 src
+test
 rollup.config.json
 tsconfig.json
+.mocharc.json
+.eslintrc.cjs
+.eslintignore
 yarn.lock

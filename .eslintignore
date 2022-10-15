@@ -3,5 +3,8 @@ dist
 # don't lint nyc coverage output
 coverage
 
+# just for now (temporary)
+test
+
 # since tsconfig ignores
 .eslintrc.js

@@ -1,40 +1,32 @@
-import babel from '@rollup/plugin-babel'
-import resolve from '@rollup/plugin-node-resolve'
+import resolve from '@rollup/plugin-node-resolve';
+import json from '@rollup/plugin-json'
+import replace from '@rollup/plugin-replace'
+import typescript from 'rollup-plugin-typescript2'
 import filesize from 'rollup-plugin-filesize'
 
-const extensions = ['.ts']
+const isProduction = process.env.NODE_ENV === 'production'
 
-const babelOptions = {
-  babelrc: false,
-  extensions,
-  exclude: '**/node_modules/**',
-  babelHelpers: 'bundled',
-  presets: [
-    [
-      '@babel/preset-env',
+export default async () => {
+  const result = {
+    input: `./src/index.ts`,
+    output: [
       {
-        loose: true,
-        modules: false,
-        targets: '>1%, not dead, not ie 11, not op_mini all',
+        file: 'dist/browserprint-es.js',
+        format: 'es',
+        sourcemap: false,
       },
     ],
-    '@babel/preset-typescript',
-  ],
-}
-
-export default [
-  {
-    input: `./src/index`,
-    output: { file: `dist/browserprint-es.js`, format: 'esm' },
-    plugins: [resolve({ extensions }), babel(babelOptions), filesize()],
-  },
-  {
-    input: `./src/index`,
-    output: { file: `dist/browserprint-es.cjs.js`, format: 'cjs' },
+    context: 'window',
     plugins: [
-      resolve({ extensions }),
-      babel(babelOptions),
-      filesize(),
+      json(),
+      resolve(),
+      typescript({
+        clean: true,
+        useTsconfigDeclarationDir: true,
+        abortOnError: true,
+      }),
     ],
-  },
-]
+  }
+  // console.log(`rollup config:\n -> external \n${JSON.stringify(result.external)}\n ->${JSON.stringify(result.output)}`);
+  return result
+}

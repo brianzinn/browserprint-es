@@ -1,7 +1,8 @@
-import { Device } from "Device";
-import { ResponseCallback } from "types";
-import { attachOnDoneCallbacks, getApiLocation, getRequest } from "utils";
+import { Device } from "./Device";
+import { ResponseCallback } from "./types";
+import { attachOnDoneCallbacks, getApiLocation, getRequest } from "./utils";
 
+// TODO: remove this
 /* eslint-disable */
 
 const deviceTimeoutMap : Record<string /* it's actually typeof Device TS1268 rule */, NodeJS.Timeout> = {};
@@ -58,7 +59,14 @@ export type ConvertAndSendOptions = {
   featureKey?: string
 }
 
-class BrowserPrint {
+export type ConvertSendStoreOptions = ConvertAndSendOptions & {
+  /**
+   * The name of the stored file
+   */
+  storageName?: string
+}
+
+export class BrowserPrint {
 
   /**
    * Function that is called if the successCallback is not included for a BrowserPrint operation.
@@ -123,16 +131,20 @@ class BrowserPrint {
     }
   }
 
-  /***
-   * Discover all of the devices that are available to the host system:
+  /**
+   * Get devices available to the local client
    *
-   * The success callback will be called when device discovery has completed, and it will be passed a list of devices as BrowserPrint.Device objects.
+   * @since Client API Level 2 
+   * 
+   * @param finishedCallback The function that is called when finding devices is completed, passing an array of devices to the function. 
+   * @param errorCallback The function that is called if an error occurs while finding devices, passing the error message to the function if there is one.
+   * @param typeFilter The type of device you are looking for. Not specifying a type will return all devices.
    */
-  static getLocalDevices = (onSuccessCallback: ResponseCallback, onErrorCallback: ResponseCallback, propertyToFilter: any): void => {
+  static getLocalDevices = (finishedCallback: ResponseCallback /* DiscoveredDevicesCallback */, errorCallback?: ResponseCallback, typeFilter?: string): void => {
     const requestObject = getRequest("GET", getApiLocation() + "available");
     const finishedFunction = (finishedResponseText: string | undefined | null) => {
       let response: any = finishedResponseText;
-      
+      console.log('finished function wrapper', finishedResponseText);
       response = JSON.parse(response);
       for (const c in response)
         if (response.hasOwnProperty(c) && Array.isArray(response[c])) {
@@ -140,25 +152,25 @@ class BrowserPrint {
             arr[finishedResponseText] = new Device(arr[finishedResponseText]);
           }
         }
-      if (undefined === propertyToFilter) {
-        onSuccessCallback(response)
+      if (undefined === typeFilter) {
+        finishedCallback(response)
       } else {
-        if (!response.hasOwnProperty(propertyToFilter)) {
-          response[propertyToFilter] = [];
+        if (!response.hasOwnProperty(typeFilter)) {
+          response[typeFilter] = [];
         }
-        onSuccessCallback(response[propertyToFilter])
+        finishedCallback(response[typeFilter])
       }
     }
-    setupOnDoneCallbacks(requestObject, finishedFunction, onErrorCallback);
+    setupOnDoneCallbacks(requestObject, finishedFunction, errorCallback);
     requestObject.send();
   }
 
-  static getDefaultDevice = (deviceType: string, successCallback: (response: string | null | Device) => void, errorCallback?: ResponseCallback): void => {
+  static getDefaultDevice = (deviceType: string, successCallback: (device: Device | null) => void, errorCallback?: ResponseCallback): void => {
     let apiPath = "default";
     if (undefined !== deviceType && null != deviceType) {
       apiPath = apiPath + "?type=" + deviceType
     };
-    let a = getRequest("GET", getApiLocation() + apiPath)
+    let requestObject = getRequest("GET", getApiLocation() + apiPath)
     let finishedFunction = function (successResponseText: string | undefined | null) {
       let response = successResponseText;
       if ("" === response || response === undefined || response === null) {
@@ -168,11 +180,11 @@ class BrowserPrint {
         successCallback(device);
       }
     }
-    a = setupOnDoneCallbacks(a, finishedFunction, errorCallback)
-    a.send()
+    requestObject = setupOnDoneCallbacks(requestObject, finishedFunction, errorCallback)
+    requestObject.send()
   }
 
-  static getApplicationConfiguration = (successCallback: ResponseCallback, errorCallback?: ResponseCallback): void => {
+  static getApplicationConfiguration = (successCallback: ResponseCallback /* ApplicationConfigurationCallback */, errorCallback?: ResponseCallback): void => {
     const requestObject = getRequest("GET", getApiLocation() + "config");
     const finishedFunction = (successResponseText: string | undefined | null) => {
       let response = successResponseText;
@@ -234,5 +246,3 @@ const setupOnDoneCallbacks = (requestObject: XMLHttpRequest, successCallback?: R
   }
   return attachOnDoneCallbacks(requestObject, successCallback, onErrorCallback)
 }
-
-export default BrowserPrint;

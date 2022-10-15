@@ -1,1 +1,3 @@
-export type ResponseCallback = (responseText?: string | null) => void
+export type ResponseCallbackType = string | undefined | null
+
+export type ResponseCallback = (responseText?: ResponseCallbackType) => void
