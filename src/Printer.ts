@@ -12,6 +12,12 @@ const dbg = (msg: string) => {
 /* eslint-disable */
 type RequestSuccessCallback = (object?: Status | Info | Configuration) => void
 
+/**
+ * Responsible for certain request types to continue reading until the 0x03 (end text code) is received.
+ * Waiting for that character ensures the entire message is ready to be parsed
+ *
+ * @hidden
+ */
 class Request {
   public type: string;
   public command: string;
@@ -52,6 +58,7 @@ class Request {
 
   execute = () => {
     this.started = true;
+    console.log(`executing '${this.type}' with command: '${this.command}'`)
     if ("info" == this.type || "config" == this.type || "status" == this.type) {
       this._device.sendThenReadUntilStringReceived(this.command, String.fromCharCode(3), this.received, this.error)
     } else {
@@ -66,16 +73,15 @@ export class Printer {
   private configuration: Configuration | undefined;
   private device_request_queue: Request[];
 
-  constructor(device: Device) {
-    // Device.call(this, device)
-    this._device = device;
+  private _configRetries: number = 0;
 
-    var d = this;
+  constructor(device: Device) {
+    this._device = device;
     this.configuration = undefined;
     this.device_request_queue = [];
 
-    // retrieves the config automatically as part of construction
-    this.configTimeout()
+    // retrieves the config automatically as part of construction - this fails horribly anyway
+    // this.configTimeout()
   }
 
   public get device(): Device {
@@ -91,7 +97,7 @@ export class Printer {
   }
 
   private executeRequest = (): void => {
-    dbg("Requests in queue: " + this.device_request_queue.length);
+    // dbg("Requests in queue: " + this.device_request_queue.length);
     if (0 < this.device_request_queue.length) {
       dbg("Executing next request...")
       this.device_request_queue[0].execute()
@@ -106,6 +112,9 @@ export class Printer {
     }
   }
 
+  /**
+   * NOTE: this is from unminified source
+   */
   private onStatusResponse: ResponseCallback = (responseText: string | undefined | null): void => {
     dbg("received status response");
     let newStatus: Status | undefined = undefined;
@@ -177,7 +186,10 @@ export class Printer {
     }
     try {
       this.configuration = new Configuration(responseText)
-    } catch (f) { }
+    } catch (f) {
+      // was empty catch in original library
+      console.error('cannot parse configuration', responseText);
+    }
     this.onResponse(responseText, Configuration)
   };
 
@@ -312,9 +324,23 @@ export class Printer {
     if (!success || !failure) {
       throw new Error('called with missing failure xor success handler');
     }
-    const request = new Request(this, this.device, "status", "~hs\r\n", this.onStatusResponse, success as RequestSuccessCallback/* TODO: check if this is safe */, failure);
+    // decompiled had "~hs\r\n"
+    const request = new Request(this, this.device, "status", "~HQES", this.onStatusResponse, success as RequestSuccessCallback/* TODO: check if this is safe */, failure);
     this.queueRequest(request)
   };
+
+  getStatusAsync = async (): Promise<Status> => {
+    return new Promise<Status>((resolve, reject) => {
+      this.getStatus(
+        (status) => {
+          resolve(status);
+        },
+        (error) => {
+          reject(error)
+        }
+      );
+    });
+  }
 
   /**
    * Queued
@@ -461,82 +487,21 @@ export class Printer {
   /**
    * @hidden
    */
-  configTimeout = () => {
+  configTimeout = (retries?: number) => {
+    if (retries === undefined) {
+      this._configRetries = 0;
+    }
     this.configuration || (this.getConfiguration() as Promise<Configuration>).then((configuration: Configuration) => {
       return this.configuration = configuration
-    }).catch(() => {
-      setTimeout(this.configTimeout, 1000)
+    }).catch((err) => {
+      this._configRetries++;
+      console.error(err);
+      if (this._configRetries < 5) {
+        setTimeout(
+          () => this.configTimeout(this._configRetries),
+          1000
+        )
+      }
     })
   }
 };
-
-var watchListMap: Record<string, WatchListItem> = {};
-
-type WatchListItem = {
-  /**
-   * pretty sure this was a 'Device' on original, but how did it call 'getStatus()' then!
-   */
-  printer: Printer
-  status: Status | '' // '' is initial state it is stringified for equality
-  onchange: (oldStatus: Status | '', newStatus: Status) => void,
-  errors: number,
-  errorsForOffline: number
-}
-
-function updateWatchListItemStatus(watchListItem: WatchListItem, status: Status) {
-  if (status instanceof Status && watchListMap[watchListItem.printer.device.uid]) {
-    if (status.offline) {
-      watchListItem.errors++;
-      if (watchListItem.errors < watchListItem.errorsForOffline) {
-        return;
-      }
-    } else {
-      watchListItem.errors = 0;
-    }
-
-    const currentStatus = watchListMap[watchListItem.printer.device.uid].status;
-    // they used JSON.stringify as easy deep equality
-    const currentStatusStringified = JSON.stringify(currentStatus);
-    watchListItem.status = status;
-    let newStatusStringified = JSON.stringify(status);
-    if (newStatusStringified !== currentStatusStringified) {
-      watchListItem.onchange(currentStatus, status)
-    }
-  }
-}
-
-// need to import this for side-effects to get it to run
-setInterval(() => {
-  for (var uid in watchListMap) {
-    if (watchListMap.hasOwnProperty(uid)) {
-      const watchListItem = watchListMap[uid];
-      // immediately invoked
-      ((watchListItem: WatchListItem) => {
-        watchListItem.printer.getStatus(
-          (status: Status) => { updateWatchListItemStatus(watchListItem, status)},
-          () => { updateWatchListItemStatus(watchListItem, new Status(""))}
-        )
-      })(watchListItem)
-    }
-  }
-}, 2000);
-
-export const DeviceWatcher = {
-  watch: (printer: Printer, onchange: (oldStatus: Status | '', newStatus: Status) => void, errorsForOffline?: number) => {
-    if (errorsForOffline === undefined) {
-      errorsForOffline = 2
-    }
-
-    // somehow it was a device with uid, but could 'getStatus' - think this code never worked.
-    watchListMap[printer.device.uid] = {
-      printer: printer,
-      status: '',
-      onchange,
-      errors: 0,
-      errorsForOffline
-    }
-  },
-  stopWatching: (printer: Printer) => {
-    delete watchListMap[printer.device.uid]
-  }
-}

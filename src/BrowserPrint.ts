@@ -1,5 +1,7 @@
-import { Device } from "./Device";
-import { ResponseCallback } from "./types";
+import { Application, ApplicationConfiguration } from "./ApplicationConfiguration";
+import { Configuration } from "./Configuration";
+import { Device, DeviceFields } from "./Device";
+import { ApplicationConfigurationCallback, DiscoveredDevicesCallback, DiscoveredDevicesCallbackType, ResponseCallback } from "./types";
 import { attachOnDoneCallbacks, getApiLocation, getRequest } from "./utils";
 
 // TODO: remove this
@@ -140,34 +142,44 @@ export class BrowserPrint {
    * @param errorCallback The function that is called if an error occurs while finding devices, passing the error message to the function if there is one.
    * @param typeFilter The type of device you are looking for. Not specifying a type will return all devices.
    */
-  static getLocalDevices = (finishedCallback: ResponseCallback /* DiscoveredDevicesCallback */, errorCallback?: ResponseCallback, typeFilter?: string): void => {
+  static getLocalDevices = (finishedCallback: DiscoveredDevicesCallback, errorCallback?: ResponseCallback, typeFilter?: string): void => {
     const requestObject = getRequest("GET", getApiLocation() + "available");
     const finishedFunction = (finishedResponseText: string | undefined | null) => {
-      let response: any = finishedResponseText;
-      console.log('finished function wrapper', finishedResponseText);
-      response = JSON.parse(response);
+      const response = JSON.parse(finishedResponseText as string) as Record<string, DeviceFields[]>;
+      const result: Record<string, Device[]> = {};
       for (const c in response)
-        if (response.hasOwnProperty(c) && Array.isArray(response[c])) {
-          for (let arr = response[c], finishedResponseText = 0; finishedResponseText < arr.length; ++finishedResponseText) {
-            arr[finishedResponseText] = new Device(arr[finishedResponseText]);
+      if (response.hasOwnProperty(c) && Array.isArray(response[c])) {
+          const deviceFieldsList: DeviceFields[] = response[c];
+          result[c] = [];
+          for(const deviceFields of deviceFieldsList) {
+            result[c].push(new Device(deviceFields));
           }
         }
       if (undefined === typeFilter) {
-        finishedCallback(response)
+        finishedCallback(result)
       } else {
         if (!response.hasOwnProperty(typeFilter)) {
           response[typeFilter] = [];
         }
-        finishedCallback(response[typeFilter])
+        finishedCallback(result[typeFilter])
       }
     }
     setupOnDoneCallbacks(requestObject, finishedFunction, errorCallback);
     requestObject.send();
   }
 
-  static getDefaultDevice = (deviceType: string, successCallback: (device: Device | null) => void, errorCallback?: ResponseCallback): void => {
+  static getLocalDevicesAsync = async(): Promise<DiscoveredDevicesCallbackType> => {
+    return new Promise<DiscoveredDevicesCallbackType>((resolve, reject) => {
+      this.getLocalDevices(
+        discoveredDevices => resolve(discoveredDevices),
+        error => reject(error)
+      )
+    });
+  }
+
+  static getDefaultDevice = (deviceType: string | undefined, successCallback: (device: Device | null) => void, errorCallback?: ResponseCallback): void => {
     let apiPath = "default";
-    if (undefined !== deviceType && null != deviceType) {
+    if (undefined !== deviceType) {
       apiPath = apiPath + "?type=" + deviceType
     };
     let requestObject = getRequest("GET", getApiLocation() + apiPath)
@@ -184,19 +196,38 @@ export class BrowserPrint {
     requestObject.send()
   }
 
-  static getApplicationConfiguration = (successCallback: ResponseCallback /* ApplicationConfigurationCallback */, errorCallback?: ResponseCallback): void => {
+  static getDefaultDeviceAsync = async (deviceType: string | undefined): Promise<Device | null> => {
+    return new Promise<Device | null>((resolve, reject) => {
+      this.getDefaultDevice(
+        deviceType,
+        device => resolve(device),
+        error => reject(error)
+      )
+    })
+  }
+
+  static getApplicationConfiguration = (successCallback: ApplicationConfigurationCallback, errorCallback?: ResponseCallback): void => {
     const requestObject = getRequest("GET", getApiLocation() + "config");
     const finishedFunction = (successResponseText: string | undefined | null) => {
       let response = successResponseText;
       if ("" === response || response === undefined || response === null) {
         successCallback(null)
       } else {
-        response = JSON.parse(response);
-        successCallback(response);
+        const applicationConguration = JSON.parse(response);
+        successCallback(new ApplicationConfiguration(applicationConguration));
       }
     }
     setupOnDoneCallbacks(requestObject, finishedFunction, errorCallback);
     requestObject.send();
+  }
+
+  static getApplicationConfigurationAsync = (): Promise<ApplicationConfiguration | null> => {
+    return new Promise((resolve, reject) => {
+      this.getApplicationConfiguration(
+        (applicationConfiguration) => resolve(applicationConfiguration),
+        (error) => reject(error)
+      );
+    });
   }
 
   static readOnInterval = (device: Device, callback: ResponseCallback, readInterval?: number): void => {

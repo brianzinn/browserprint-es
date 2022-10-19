@@ -42,7 +42,7 @@ export const getApiLocation = (): string => API_LOCATION;
 
 export const hasProperControlCharacters = (characters: string): boolean => {
   if (2 !== characters.charCodeAt(0) || 3 !== characters.charCodeAt(characters.length - 1)) {
-    console.log("Response did not contain proper control characters")
+    console.log("Response did not contain proper control characters", characters)
     return false;
   } else {
     return true;

@@ -1,5 +1,8 @@
+// BrowserPrint here creates a circular ref, but it's needed unfortunately
+// as even Device is a thing wrapper to the static BrowserPrint methods.
+// (original library used closure and single file to solve - could always do that!)
 import { BrowserPrint, ConvertAndSendOptions, ToFormat } from "./BrowserPrint"
-import { ResponseCallback } from "./types"
+import { ResponseCallback, ResponseCallbackType } from "./types"
 import { attachOnDoneCallbacks, getApiLocation, getRequest } from "./utils"
 
 /**
@@ -41,10 +44,10 @@ export type DeviceFields = {
   /**
    * The friendly name of the device. This will be generated based on the response from discovered network printers. For USB printers, this value will be the same as the uid 
    */
-  
+
   name: string
   connection: DeviceConnectionType
-  version: number  
+  version: number
   manufacturer: string
 }
 
@@ -115,6 +118,19 @@ export class Device {
   readFinishedCallback: ResponseCallback = () => {/* empty */ };
 
   /**
+ * Same as attachDoneCallbacks except that it will attach default callback(s) when not specified
+ */
+  private setupOnDoneCallbacks = (requestObject: XMLHttpRequest, onSuccessCallback: ResponseCallback | undefined, onErrorCallback: ResponseCallback | undefined) => {
+    const success: ResponseCallback = (onSuccessCallback !== undefined)
+      ? onSuccessCallback
+      : BrowserPrint.defaultSuccessCallback;
+    const failure: ResponseCallback = (onErrorCallback !== undefined)
+      ? onErrorCallback
+      : BrowserPrint.defaultErrorCallback;
+    attachOnDoneCallbacks(requestObject, success, failure);
+  }
+
+  /**
    * Send data to the device
    * 
    * @since Client API Level 2 
@@ -147,6 +163,21 @@ export class Device {
   }
 
   /**
+   * Same as send, but returns a promise.
+   * @param dataToSend The data to be sent to the device
+   * @returns let's see what it returns
+   */
+  sendAsync = (dataToSend: string): Promise<ResponseCallbackType> => {
+    return new Promise<ResponseCallbackType>((resolve, reject) => {
+      this.send(
+        dataToSend,
+        (responseText) => resolve(responseText),
+        (error) => reject(error)
+      )
+    })
+  }
+
+  /**
    * Send contents of url or blob to the device without any conversion. 
    *
    * @since Client API Level 4 
@@ -165,7 +196,7 @@ export class Device {
       const requestObject = getRequest("POST", getApiLocation() + "write");
       if (requestObject) {
         requestObject.responseType = "text";
-        setupOnDoneCallbacks(requestObject, onSuccessCallback, onErrorCallback);
+        this.setupOnDoneCallbacks(requestObject, onSuccessCallback, onErrorCallback);
         const formData = new FormData;
         const jsonPayload = {
           device: this// woah weird.  probably we want
@@ -223,18 +254,21 @@ export class Device {
     if (!c) {
       c = "";
     }
+    
     if (undefined === retries) {
       retries = this.readRetries
     }
-    finishedCallback = function (device: Device, finishedCallbackInner: ResponseCallback, e, retries: number, g: string): ResponseCallback {
+    
+    // TODO: clean this up with arrow function.
+    finishedCallback = function (device: Device, finishedCallbackInner: ResponseCallback, e, retries: number, accumulatedText: string): ResponseCallback {
       return function (c: string | undefined | null) {
         if (c && 0 !== c.length) {
           retries = 0;
         } else if (0 >= retries) {
-          finishedCallbackInner(g);
+          finishedCallbackInner(accumulatedText);
           return;
         }
-        c = g + (c as string);
+        c = accumulatedText + (c as string);
         if ("" !== receivedString && -1 < c.indexOf(receivedString)) {
           finishedCallbackInner(c)
         } else {
@@ -242,6 +276,7 @@ export class Device {
         }
       }
     }(this, finishedCallback ?? BrowserPrint.defaultSuccessCallback /* to not need null assertion */, errorCallback, retries, c);
+    
     this.read(finishedCallback, errorCallback)
   }
 
@@ -268,11 +303,14 @@ export class Device {
    * @param errorCallback 
    */
   sendThenRead = (dataToSend: string, finishedCallback: ResponseCallback, errorCallback: ResponseCallback) => {
-    this.send(dataToSend, function (device: Device): ResponseCallback {
-      return function () {
-        device.read(finishedCallback, errorCallback)
-      }
-    }(this), errorCallback)
+    this.send(
+      dataToSend,
+      (text: ResponseCallbackType) => {
+        console.log('send received:', text);
+        this.read(finishedCallback, errorCallback)
+      },
+      errorCallback
+    )
   };
 
   /**
@@ -287,11 +325,14 @@ export class Device {
    * @param retries The number of reads to attempt before receiving any data. Once any amount of data is received, no retries will be made. If this value is undefined, the value of the readRetries property will be used.
    */
   sendThenReadUntilStringReceived = (dataToSend: string, receivedString: string, finishedCallback: ResponseCallback, errorCallback?: ResponseCallback, retries?: number) => {
-    this.send(dataToSend, function (device: Device): () => void {
-      return function () {
-        device.readUntilStringReceived(receivedString, finishedCallback, errorCallback, retries)
-      }
-    }(this), errorCallback)
+    this.send(
+      dataToSend,
+      (text: ResponseCallbackType): void => {
+        console.log('text received', text);
+        this.readUntilStringReceived(receivedString, finishedCallback, errorCallback, retries)
+      },
+      errorCallback
+    )
   }
   /**
    * Send data to the device, then read a response back until the specified string is received or all data has been read
@@ -304,11 +345,13 @@ export class Device {
    * @param retries The number of reads to attempt before receiving any data. Once any amount of data is received, no retries will be made. If this value is undefined, the value of the readRetries property will be used.
    */
   sendThenReadAllAvailable = (dataToSend: string, finishedCallback: ResponseCallback, errorCallback?: ResponseCallback, retries?: number) => {
-    this.send(dataToSend, function (a: Device): ResponseCallback {
-      return function () {
-        a.readUntilStringReceived("", finishedCallback, errorCallback, retries)
-      }
-    }(this), errorCallback)
+    this.send(
+      dataToSend,
+      (responseText: ResponseCallbackType) => {
+        console.log('send received text:', responseText);
+        this.readUntilStringReceived("", finishedCallback, errorCallback, retries)
+      },
+      errorCallback)
   }
 
   /**
@@ -345,10 +388,16 @@ export class Device {
     */
   sendUrl = (url: string, onSuccessCallback?: ResponseCallback, onErrorCallback?: ResponseCallback, options?: SendUrlOptions): void => {
     const requestObject = getRequest("POST", getApiLocation() + "write");
-    // note: was attachOnDoneCallbacks in source - looks like a bug in source as could be undefined
-    setupOnDoneCallbacks(requestObject, onSuccessCallback, onErrorCallback);
+    this.setupOnDoneCallbacks(requestObject, onSuccessCallback, onErrorCallback);
 
-    const data: Record<string, any> = {
+    type SendUrlType = {
+      device: DeviceFields,
+      url: string,
+      // @typescript-eslint/no-explicit-any
+      options?: any
+    }
+
+    const data: SendUrlType = {
       device: {
         name: this.name,
         uid: this.uid,
@@ -365,8 +414,4 @@ export class Device {
     }
     requestObject.send(JSON.stringify(data))
   }
-}
-
-function setupOnDoneCallbacks(requestObject: XMLHttpRequest, onSuccessCallback: ResponseCallback | undefined, onErrorCallback: ResponseCallback | undefined) {
-  throw new Error("Function not implemented.")
 }

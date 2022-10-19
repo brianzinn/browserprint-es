@@ -27,13 +27,7 @@ export type Application = {
 export class ApplicationConfiguration {
   public application: Application;
 
-  constructor() {
-    this.application = {
-      version: "1.2.0.3",
-      build_number: 3,
-      api_level: 2,
-      platform: "",
-      supportedConversions: {}
-    }
+  constructor(raw: { application: Application }) {
+    this.application = raw.application;
   }
 }
