@@ -1,6 +1,6 @@
 {
   "name": "browserprint-es",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "BrowserPrint ES",
   "main": "dist/browserprint-es.js",
   "module": "dist/browserprint-es.js",
@@ -26,8 +26,7 @@
     "url": "https://github.com/brianzinn/browserprint-es/issues"
   },
   "homepage": "https://github.com/brianzinn/browserprint-es#readme",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "@rollup/plugin-json": "^5.0.0",
     "@rollup/plugin-node-resolve": "^15.0.0",
