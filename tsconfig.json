@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationDir": "dist/types",
-    "removeComments": true,
+    "removeComments": false,
     "outDir": "dist",
     "resolveJsonModule": true,
     "noImplicitThis": false

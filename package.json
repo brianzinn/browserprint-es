@@ -1,6 +1,6 @@
 {
   "name": "browserprint-es",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "BrowserPrint ES",
   "main": "dist/browserprint-es.js",
   "module": "dist/browserprint-es.js",

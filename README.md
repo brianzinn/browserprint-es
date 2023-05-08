@@ -6,14 +6,14 @@ npm i browserprint-es
 yarn add browserprint-es
 ```
 
-This is a direct port of BrowserPrint in an easier to consume and use format with modern development - adhering closely to the original API while allowing async/await and full IDE intellisense and typings support.
+This is a direct port of `BrowserPrint` in an easier to consume and use format with modern development - adhering closely to the original API while allowing async/await and full IDE intellisense and typings + comments support.
 
-The minified version provided by Zebra doesn't provide typings/intellisense. Although there is a JSDoc it's not that intuitive and cannot be brought into development flow/IDE like a commented ES version. The minified script won't bundle and integrate with your build (ie: tree shaking).
+The minified version provided by Zebra doesn't provide typings/intellisense. Although there is a separate JSDoc it's not that intuitive and cannot be brought into development flow/IDE like a commented ES version. The minified script won't bundle and integrate with your build (ie: tree shaking).
 
-> Generated from TypeScript for strong typings support!
+> Generated from TypeScript source for automatic typings!
 
 ## BrowserPrint examples (following original API)
-note: see below for async/await improvements:
+This project is backwards compatible with original callback signatures, but has been extended with async/await:
 ```typescript
 import BrowserPrint, { Device, Configuration} from 'browserprint-es'
 let defaultDevice: Device | null = null;
@@ -37,11 +37,12 @@ BrowserPrint.getApplicationConfiguration(
 )
 ```
 
-Above can be written instead with async/await
+Above can be written instead with async/await.  Examples:
 
 *TypeScript*
 ```typescript
 // async/await (Promises) available on some methods (so far)
+// NOTE: declaration types not necessary - added to describe return types
 import BrowserPrint, { Device, Configuration } from 'browserprint-es'
 const device: Device | null = await BrowserPrint.getDefaultDeviceAsync('printer');
 const localDevices: Record<string, Device[]> = await BrowserPrint.getLocalDevicesAsync();
@@ -49,13 +50,13 @@ const applicationConfiguration: Configuration | null = await BrowserPrint.getCon
 ```
 *JavaScript*
 ```typescript
-import BrowserPrint, { Device, Configuration } from 'browserprint-es'
+import BrowserPrint from 'browserprint-es'
 const device = await BrowserPrint.getDefaultDeviceAsync('printer');
 const localDevices = await BrowserPrint.getLocalDevicesAsync();
 const applicationConfiguration = await BrowserPrint.getConfiguration();
 ```
 
-# Original BrowserPrint API (ie: from BrowserPrint-3.0.xxx.min.js)
+## Original BrowserPrint API (ie: from BrowserPrint-3.0.xxx.min.js)
 ```typescript
 // These are static methods (call directly)
 BrowserPrint.bindFieldToReadData(device, field, readInterval, onReadCallback)
@@ -68,17 +69,15 @@ BrowserPrint.loadFileFromUrl(url, finishedCallback, errorCallback)
 BrowserPrint.readOnInterval(device, callback, readInterval)
 BrowserPrint.stopReadOnInterval(device)
 
-// Instances of devices (as returned above) have:
 // properties:
 const deviceType: string = device.deviceType
 const name: string = device.name
 const readRetries: number = device.readRetries
-// methods
+// methods:
 device.convertAndSendFile(resource, finishedCallback, errorCallback, options)
 device.read(finishedCallback, errorCallback)
 device.readAllAvailable(finishedCallback, errorCallback, retries)
 device.readUntilStringReceived(receivedString, finishedCallback, errorCallback, retries)
-// Printer object (described below) abstracts away status/configuration/info calls to strongly typed objects.
 device.send(dataToSend, finishedCallback, errorCallback)
 device.sendFile(resource, finishedCallback, errorCallback)
 device.sendThenRead(dataToSend, finishedCallback, errorCallback)
@@ -88,11 +87,12 @@ device.sendThenReadUntilStringReceived(dataToSend, receivedString, finishedCallb
 device.sendUrl(urlOfResource, finishedCallback, errorCallback, options)
 ```
 
-# Original Zebra BrowserPrint API (ie: from BrowserPrint-Zebra-1.0.xxx.min.js)
-The Zebra API adds objects like Configuration, Status, Info and most importantly the Printer object to simplify communication with Device
-```
-// not static methods like BrowserPrint, but object like Printer to communicate with devices.
-// Printer has instance methods
+# Original BrowserPrint-Zebra API (ie: from BrowserPrint-Zebra-1.0.xxx.min.js)
+The "BrowserPrint-Zebra" API adds objects like Configuration, Status, Info and most importantly the Printer class to abstract and simplify communication with Device
+> especially to decoding of responses to strongly typed objects
+```javascript
+// not static methods like BrowserPrint
+// Printer instance methods used to communicate with devices.
 const printer = new Printer(device);
 printer.getConfiguration(success, failure) 
 printer.getConvertedResource(resource, options, success, failure)
@@ -107,8 +107,8 @@ printer.setThenGetSGD(setting, value, success, failure)
 printer.storeConvertedResource(resource, options, success, failure)
 ```
 
-## Zebra BrowserPrint API
-Adding this brings in the useful `Printer` object that makes it easier to get printer status.
+## BrowserPrint-Zebra API example
+Adding this brought in the useful `Printer` object that makes it easier to get `Status`/`isPrinterReady`/`Info`/`Configuration`/etc.
 ie:
 ```typescript
 import BrowserPrint, { Device, Printer, Status } from 'browserprint-es'
@@ -129,4 +129,4 @@ const status: Status | null = await printer.getStatusAsync()
 
 TODO:
 1. There's also some undocumented features that I will share at some point for watching/monitoring devices (hint: You can find them in the imports and typings).
-2. Add more unit tests (very basic testing only in place so far)
+2. Add more unit tests (very basic testing of parsing only in place so far)
