@@ -56,11 +56,15 @@ export type DeviceFields = {
  */
 export class Device {
   // These private are not listed in jsdoc
-  private _uid: string;
   private deviceType: string;
   private provider: string;
   private manufacturer: string;
 
+  /**
+   * This is not in jsdoc, so should be private, but DeviceWatcher needs access and this property is used
+   * in requests via by JSON.stringify(this) and "uid" is expected by BrowserPrint (not "_uid")
+   */
+  public uid: string;
   /**
    * The friendly name of the device. This will be generated based on the response from discovered network printers. For USB printers, this value will be the same as the uid 
    */
@@ -85,7 +89,7 @@ export class Device {
    */
   constructor(deviceJson: DeviceFields) {
     // TODO: back more properties to private (name, connection, version, readRetries)
-    this._uid = deviceJson.uid;
+    this.uid = deviceJson.uid;
     this.name = deviceJson.name;
     this.connection = deviceJson.connection;
     this.deviceType = deviceJson.deviceType;
@@ -94,10 +98,6 @@ export class Device {
     this.version = deviceJson.version;
     // not provided by device
     this.readRetries = ("bluetooth" === this.connection) ? 1 : 0;
-  }
-
-  public get uid(): string {
-    return this._uid;
   }
 
   /**
