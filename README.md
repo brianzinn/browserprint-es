@@ -127,6 +127,11 @@ const printer: Printer = new Printer(device! /* assume above call is a valid pri
 const status: Status | null = await printer.getStatusAsync()
 ```
 
-TODO:
+# Emulator
+For testing locally without needing a printer (and saving paper) - check out the BrowserPrint emulator:
+[github.com/brianzinn/zebra-emulator](https://github.com/brianzinn/zebra-emulator)
+
+# Future enhancements
 1. There's also some undocumented features that I will share at some point for watching/monitoring devices (hint: You can find them in the imports and typings).
 2. Add more unit tests (very basic testing of parsing only in place so far)
+
