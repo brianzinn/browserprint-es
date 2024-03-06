@@ -1,3 +1,9 @@
+<div align="center">
+ <a href="https://www.npmjs.com/package/browserprint-es">
+  <img alt="Weekly downloads" src="https://badgen.net/npm/dw/browserprint-es?color=blue" />
+ </a>
+</div>
+
 ## install
 ```bash
 npm i browserprint-es
