@@ -28,7 +28,7 @@ export const attachOnDoneCallbacks = (requestObject: XMLHttpRequest, successCall
   return requestObject
 }
 
-const isBrowser = window !== undefined && window.navigator !== undefined;
+const isBrowser = typeof window !== 'undefined' && typeof window.navigator !== 'undefined';
 console.log('is browser:', isBrowser);
 const useHttpsByUserAgent = isBrowser && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
